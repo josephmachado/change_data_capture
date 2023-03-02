@@ -88,6 +88,8 @@ WINDOW lead_txn_timestamp AS (PARTITION BY id ORDER BY log_seq_num )
 ORDER BY id, row_valid_start_timestamp
 LIMIT
     200;
+
+.exit; -- exit the cli
 ```
 
 # References
