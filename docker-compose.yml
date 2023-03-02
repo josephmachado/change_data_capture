@@ -1,0 +1,103 @@
+version: "2"
+
+services:
+  zookeeper:
+    image: docker.io/bitnami/zookeeper:3.8
+    ports:
+      - "2181:2181"
+    volumes:
+      - "zookeeper_data:/bitnami"
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+
+  kafka:
+    image: docker.io/bitnami/kafka:3.4
+    ports:
+      - "9093:9093"
+    volumes:
+      - "kafka_data:/bitnami"
+    environment:
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_CFG_LISTENERS=CLIENT://:9092,EXTERNAL://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka:9092,EXTERNAL://localhost:9093
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=CLIENT
+    depends_on:
+      - zookeeper
+
+  connect:
+    build:
+      context: ./container/connect
+      dockerfile: Dockerfile
+    container_name: connect
+    hostname: connect
+    ports:
+      - "8083:8083"
+    environment:
+      - GROUP_ID=1
+      - CONFIG_STORAGE_TOPIC=my-connect-configs
+      - OFFSET_STORAGE_TOPIC=my-connect-offsets
+      - BOOTSTRAP_SERVERS=kafka:9092
+    links:
+      - zookeeper:zookeeper
+      - kafka:kafka
+    depends_on:
+      - zookeeper
+      - kafka
+
+  postgres:
+    image: debezium/postgres:15
+    container_name: postgres
+    hostname: postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2022-05-26T05-48-41Z
+    hostname: minio
+    container_name: minio
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - ./minio/data:/data
+    environment:
+      MINIO_ACCESS_KEY: minio
+      MINIO_SECRET_KEY: minio123
+    command: server --console-address ":9001" /data
+
+  createbuckets:
+    image: minio/mc
+    container_name: createbuckets
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "  /usr/bin/mc config host add myminio http://minio:9000 minio minio123; /usr/bin/mc rm -r --force myminio/commerce;  /usr/bin/mc mb myminio/commerce;  /usr/bin/mc policy download myminio/commerce;  /usr/bin/mc cp /tmp/data myminio/commerce; exit 0;  "
+
+  datagen:
+    build:
+      context: .
+      dockerfile: ./container/datagen/Dockerfile
+    entrypoint:
+      - python
+      - ./gen_user_payment_data.py
+    container_name: datagen
+    restart: on-failure
+    depends_on:
+      - postgres
+
+volumes:
+  zookeeper_data:
+    driver: local
+  kafka_data:
+    driver: local
+  postgres_data:
+    driver: local
