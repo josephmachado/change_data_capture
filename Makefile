@@ -9,6 +9,8 @@ compose-down:
 
 down: compose-down remove-minio-data
 
+restart: down up
+
 minio-ui:
 	open http://localhost:9001
 
