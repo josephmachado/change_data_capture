@@ -74,52 +74,53 @@ In the minio UI, use `minio`, and `minio123` as username and password respective
 
 # Analyze data with duckDB
 
-We [mount a local folder to minio container](./docker-compose.yml) which allows us to access the data in minio via filesystem. We can start a duckDB shell as shown below
+We [mount a local folder to minio container](./docker-compose.yml) which allows us to access the data in minio via filesystem. We can start a Python REPL to run DuckDB as shown below:
 
 ```bash
-./duckdb
+python
 ```
 
-Now let's create a SCD2 for `products` table from the data we have in minio. Note we are only looking at rows that have updates and deletes in them (see the `where id in` filter in the below query). If the query is not working, try pasting the query line by line.
+Now let's create a SCD2 for `products` table from the data we have in minio. Note we are only looking at rows that have updates and deletes in them (see the `where id in` filter in the below query). 
 
-```sql
-WITH products_create_update_delete AS (
+```python
+import duckdb as d
+d.sql("""
+    WITH products_create_update_delete AS (
+        SELECT
+            COALESCE(CAST(json->'value'->'after'->'id' AS INT), CAST(json->'value'->'before'->'id' AS INT)) AS id,
+            json->'value'->'before' AS before_row_value,
+            json->'value'->'after' AS after_row_value,
+            CASE
+                WHEN CAST(json->'value'->'$.op' AS CHAR(1)) = '"c"' THEN 'CREATE'
+                WHEN CAST(json->'value'->'$.op' AS CHAR(1)) = '"d"' THEN 'DELETE'
+                WHEN CAST(json->'value'->'$.op' AS CHAR(1)) = '"u"' THEN 'UPDATE'
+                WHEN CAST(json->'value'->'$.op' AS CHAR(1)) = '"r"' THEN 'SNAPSHOT'
+                ELSE 'INVALID'
+            END AS operation_type,
+            CAST(json->'value'->'source'->'lsn' AS BIGINT) AS log_seq_num,
+            epoch_ms(CAST(json->'value'->'source'->'ts_ms' AS BIGINT)) AS source_timestamp
+        FROM
+            read_ndjson_objects('minio/data/commerce/debezium.commerce.products/*/*/*.json')
+        WHERE
+            log_seq_num IS NOT NULL
+    )
     SELECT
-        COALESCE(CAST(json->'value'->'after'->'id' AS INT), CAST(json->'value'->'before'->'id' AS INT)) AS id,
-        json->'value'->'before' AS before_row_value,
-        json->'value'->'after' AS after_row_value,
-        CASE
-            WHEN CAST(json->'value'->'$.op' AS CHAR(1)) = '"c"' THEN 'CREATE'
-            WHEN CAST(json->'value'->'$.op' AS CHAR(1)) = '"d"' THEN 'DELETE'
-            WHEN CAST(json->'value'->'$.op' AS CHAR(1)) = '"u"' THEN 'UPDATE'
-            WHEN CAST(json->'value'->'$.op' AS CHAR(1)) = '"r"' THEN 'SNAPSHOT'
-            ELSE 'INVALID'
-        END AS operation_type,
-        CAST(json->'value'->'source'->'lsn' AS BIGINT) AS log_seq_num,
-        epoch_ms(CAST(json->'value'->'source'->'ts_ms' AS BIGINT)) AS source_timestamp
-    FROM
-        read_ndjson_objects('minio/data/commerce/debezium.commerce.products/*/*/*.json')
-    WHERE
-        log_seq_num IS NOT NULL
-)
-SELECT
-    id,
-    CAST(after_row_value->'name' AS VARCHAR(255)) AS name,
-    CAST(after_row_value->'description' AS TEXT) AS description,
-    CAST(after_row_value->'price' AS NUMERIC(10, 2)) AS price,
-    source_timestamp AS row_valid_start_timestamp,
-    CASE 
-        WHEN LEAD(source_timestamp, 1) OVER lead_txn_timestamp IS NULL THEN CAST('9999-01-01' AS TIMESTAMP) 
-        ELSE LEAD(source_timestamp, 1) OVER lead_txn_timestamp 
-    END AS row_valid_expiration_timestamp
-FROM products_create_update_delete
-WHERE id in (SELECT id FROM products_create_update_delete GROUP BY id HAVING COUNT(*) > 1)
-WINDOW lead_txn_timestamp AS (PARTITION BY id ORDER BY log_seq_num )
-ORDER BY id, row_valid_start_timestamp
-LIMIT
-    200;
-
-.exit; -- exit the cli
+        id,
+        CAST(after_row_value->'name' AS VARCHAR(255)) AS name,
+        CAST(after_row_value->'description' AS TEXT) AS description,
+        CAST(after_row_value->'price' AS NUMERIC(10, 2)) AS price,
+        source_timestamp AS row_valid_start_timestamp,
+        CASE 
+            WHEN LEAD(source_timestamp, 1) OVER lead_txn_timestamp IS NULL THEN CAST('9999-01-01' AS TIMESTAMP) 
+            ELSE LEAD(source_timestamp, 1) OVER lead_txn_timestamp 
+        END AS row_valid_expiration_timestamp
+    FROM products_create_update_delete
+    WHERE id in (SELECT id FROM products_create_update_delete GROUP BY id HAVING COUNT(*) > 1)
+    WINDOW lead_txn_timestamp AS (PARTITION BY id ORDER BY log_seq_num )
+    ORDER BY id, row_valid_start_timestamp
+    LIMIT
+        200;
+    """).execute()
 ```
 
 # References
