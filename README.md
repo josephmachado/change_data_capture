@@ -23,7 +23,7 @@ You can run this CDC data pipeline using GitHub codespaces. Follow the instructi
 2. Wait for codespaces to start, then in the terminal type `make up && sleep 60 && make connectors && sleep 60`.
 3. Wait for the above to complete, it can take up a couple of minutes.
 4. Go to the `ports` tab and click on the link exposing port `9001` to access Minio (open source S3) UI.
-5. In the minio UI, use minio, and minio123 as username and password respectively. In the minio UI you will be able to see the the paths commerce/debezium.commerce.products and commerce/debezium.commerce.users paths, which have json files in them. The json files contain data about the create, updates and deletes in the respective products and users tables.
+5. In the minio UI, use `minio`, and `minio123` as username and password respectively. In the minio UI you will be able to see the the paths `commerce/debezium.commerce.products` and `commerce/debezium.commerce.users` paths, which have json files in them. The json files contain data about the create, updates and deletes in the respective products and users tables.
 
 **NOTE**: The screenshots below, show the general process to start codespaces, please follow the instructions shown above for this project.
 
