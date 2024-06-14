@@ -1,8 +1,38 @@
+
+* [Change Data Capture](#change-data-capture)
+* [Project Design](#project-design)
+* [Run on codespaces](#run-on-codespaces)
+* [Prerequisites](#prerequisites)
+* [Setup](#setup)
+* [Analyze data with duckDB](#analyze-data-with-duckdb)
+* [References](#references)
+    * [duckDB](#duckdb)
+* [Project Design](#project-design-1)
+
 # Change Data Capture
 
 Repository for the [Change Data Capture with Debezium](https://www.startdataengineering.com/post/change-data-capture-using-debezium-kafka-and-pg/) blog at startdataengineering.com.
 
 # Project Design
+
+# Run on codespaces
+
+You can run this CDC data pipeline using GitHub codespaces. Follow the instructions below.
+
+1. Create codespaces by going to the **[change_data_capture](https://github.com/josephmachado/change_data_capture)** repository, cloning(or fork) it and then clicking on `Create codespaces on main` button.
+2. Wait for codespaces to start, then in the terminal type `make up && sleep 60 && make connectors && sleep 60`.
+3. Wait for the above to complete, it can take up a couple of minutes.
+4. Go to the `ports` tab and click on the link exposing port `9001` to access Minio (open source S3) UI.
+5. In the minio UI, use minio, and minio123 as username and password respectively. In the minio UI you will be able to see the the paths commerce/debezium.commerce.products and commerce/debezium.commerce.users paths, which have json files in them. The json files contain data about the create, updates and deletes in the respective products and users tables.
+
+**NOTE**: The screenshots below, show the general process to start codespaces, please follow the instructions shown above for this project.
+
+![codespace start](./assets/images/cs1.png)
+![codespace make up](./assets/images/cs2.png)
+![codespace access ui](./assets/images/cs3.png)
+
+**Note** Make sure to switch off codespaces instance, you only have limited free usage; see docs [here](https://github.com/features/codespaces#pricing).
+
 
 # Prerequisites
 
