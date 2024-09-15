@@ -74,6 +74,7 @@ In the minio UI, use `minio`, and `minio123` as username and password respective
 
 # Analyze data with duckDB
 
+## Access the data in minio via filesystem
 We [mount a local folder to minio container](./docker-compose.yml) which allows us to access the data in minio via filesystem. We can start a Python REPL to run DuckDB as shown below:
 
 ```bash
@@ -123,13 +124,16 @@ d.sql("""
     """).execute()
 ```
 
+## Access data via s3 api
+We can also access the data via the S3 API in duckdb as shown in this [example SQL query](./example/duckdb_minio_product_scd2.sql).
+
 # References
 
 1. [Debezium postgre docs](https://debezium.io/documentation/reference/2.1/connectors/postgresql.html)
 2. [Redpanda CDC example](https://redpanda.com/blog/redpanda-debezium)
 3. [duckDB docs](https://duckdb.org/docs/archive/0.2.9/)
 4. [Kafka docs](https://kafka.apache.org/20/documentation.html)
-
+5. [Minio DuckDB example](https://blog.min.io/duckdb-and-minio-for-a-modern-data-stack/)
 
 <!-- Send message to kafka
 CASE WHEN LEAD(source_timestamp, 1) OVER(PARTITION BY id ORDER BY log_seq_num ) IS NULL THEN CAST('9999-01-01' AS TIMESTAMP) ELSE 

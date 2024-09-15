@@ -77,6 +77,8 @@ services:
   createbuckets:
     image: minio/mc
     container_name: createbuckets
+    links:
+      - minio:minio
     depends_on:
       - minio
     entrypoint: >
